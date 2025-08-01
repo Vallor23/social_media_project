@@ -39,7 +39,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['social-media-project-9u8u.onrender.com', 'localhost', '127.0.0.1']
 
 
 # Application definition
