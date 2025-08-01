@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import environ
 import os
+import dj_database_url 
 
 env = environ.Env(
     # set casting, default value
@@ -98,14 +99,10 @@ WSGI_APPLICATION = 'social_media_project.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('POSTGRES_DB'),
-        'USER': env('POSTGRES_USER'),
-        'PASSWORD': env('POSTGRES_PASSWORD'),      
-        'HOST': 'localhost',                  
-        'PORT': '5432',            
-    }
+     'default': dj_database_url.config(
+        default='postgresql://social_media_db_esib_user:kWpCmP0Ct1jbHoJ7dto3kEHeclocwSY7@dpg-d26i0n6r433s73ekjpjg-a/social_media_db_esib',
+        conn_max_age=600
+    )
 }
 
 # Password validation
