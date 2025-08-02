@@ -6,6 +6,8 @@ class User(AbstractUser):
     bio = models.TextField(null=True, blank=True)
     profile_image = models.ImageField(upload_to="profiles/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    first_name = models.CharField(max_length=30, blank=False)
+    last_name = models.CharField(max_length=30, blank=False)
 
     def __str__(self):
         return self.username
