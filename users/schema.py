@@ -56,17 +56,17 @@ class RegisterUser(graphene.Mutation):
 
     class Arguments:
         username = graphene.String(required=True, description="Desired username")
-        first_name = graphene.String(required=True)
-        last_name = graphene.String(required=True)
+        firstName = graphene.String(required=True)
+        lastName = graphene.String(required=True)
         email = graphene.String(required=True, description="Valid user email")
         password = graphene.String(required=True,  description="Secure password")
 
     Output = AuthPayload
 
-    def mutate(self, info, username, email, password):
+    def mutate(self, info, username, email, password, firstName, lastName):
         # Handles the actual logic of creating the user in Django.
         try:
-            user = User.objects.create_user(username=username, email=email, password=password)
+            user = User.objects.create_user(username=username, email=email, password=password, first_name=firstName, last_name=lastName)
             token = get_token(user)
             return AuthPayload(token=token, user=user)
         except Exception as e:
@@ -167,6 +167,9 @@ class Query(graphene.ObjectType):
     all_users =  graphene.List(UserType, description="Returns a list of all users in the system.")
 
     def resolve_all_users(self, info):
+        user = info.context.user
+        if user.is_anonymous:
+            raise Exception("Authentication required")
         return User.objects.all()
 
     def resolve_userProfile(root, info):
