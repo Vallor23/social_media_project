@@ -1,13 +1,20 @@
 import graphene
 import graphql_jwt
 from graphene_django import DjangoObjectType
-from users.models import User, Follow
+from users.models import User, Follow, UserProfile
 from graphql_jwt.shortcuts import get_token
 from django.contrib.auth import authenticate
 from graphql import GraphQLError
 
 class UserType(DjangoObjectType):
     """Represents a user and their profile information."""
+    class Meta:
+        model = User
+        fields = ("id", "username","first_name", "last_name", "email", "profile_image", "created_at")
+        description = "User profile data including social connections."
+
+class UserProfileType(DjangoObjectType):
+    """Represents a user profile information."""
 
     followers = graphene.List(lambda: UserType, description="List of users who follow this user.")
     following = graphene.List(lambda: UserType,  description="List of users this user is following.")
@@ -15,27 +22,27 @@ class UserType(DjangoObjectType):
 
     followers_count = graphene.Int(description="Total number of users following this user.")
     following_count = graphene.Int( description="Total number of users this user is following.")
-    
     class Meta:
-        model = User
-        fields = ("id", "username","first_name", "last_name", "email", "profile_image", "created_at")
+        model = UserProfile
+        fields = ("user", "bio", "profile_image")
         description = "User profile data including social connections."
 
     def resolve_followers(self, info):
         return [follow.follower for follow in self.followers.all()]
-    
+
     def resolve_following(self, info):
         return [follow.following for follow in self.following.all()]
-    
+
     def resolve_is_following(self, info):
         current_user = info.context.user
         return Follow.objects.filter(follower=current_user, following=self).exists()
-    
+
     def resolve_followers_count(self, info):
         return self.followers.count()
 
     def resolve_following_count(self, info):
         return self.following.count()
+
 class FollowType(DjangoObjectType):
     """Represents a follow relationship between users."""
 
@@ -66,7 +73,11 @@ class RegisterUser(graphene.Mutation):
     def mutate(self, info, username, email, password, firstName, lastName):
         # Handles the actual logic of creating the user in Django.
         try:
+            # Create user
             user = User.objects.create_user(username=username, email=email, password=password, first_name=firstName, last_name=lastName)
+            # Create empty profile
+            UserProfile.objects.create(user=user)
+
             token = get_token(user)
             return AuthPayload(token=token, user=user)
         except Exception as e:
@@ -98,19 +109,37 @@ class UpdateProfile(graphene.Mutation):
     class Arguments:
         username = graphene.String(description="New username (optional)")
         email = graphene.String(description="New email (optional)")
+        firstName = graphene.String(description="New firstname (optional)")
+        lastName = graphene.String(description="New lastname (optional)")
+        bio = graphene.String(description="New bio (optional)")
+        profile_image = graphene.String(description="New profile image URL (optional)")
         
-    user = graphene.Field(UserType, description="The updated user profile")
+    user = graphene.Field(UserType, description="Updated user information")
+    profile = graphene.Field(UserProfileType, description="The updated user profile information")
 
     def mutate(self, info, **kwargs):
         user = info.context.user
         if user.is_anonymous:
             raise Exception("Authentication required to update profile.")
         
-        for key, value in kwargs.items():
-            setattr(user, key, value)
+        user_fields = ['username', 'email', 'first_name', 'last_name']
+        profile_fields = ['bio', 'profile_image']
 
+        # Update user fields
+        for key, value in kwargs.items():
+            if key in user_fields and value is not None:
+                setattr(user, key, value)
         user.save()
-        return UpdateProfile(user=user)
+
+        # Update profile fields
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        for key, value in kwargs.items():
+            if key in profile_fields and value is not None:
+                setattr(profile, key, value)
+        profile.save()
+
+        # Return the updated user and profile
+        return UpdateProfile(user=user, profile=profile)
 
 class FollowUser(graphene.Mutation):
     """
@@ -163,7 +192,12 @@ class Query(graphene.ObjectType):
     """
     Root Query type for fetching user data.
     """
-    userProfile = graphene.Field(UserType, description="Returns the profile of the currently authenticated user.")
+    userProfile = graphene.Field(
+        UserProfileType,
+        username =graphene.String(),
+        description="Returns the user profile by username or current user if no username is provided"
+    )
+
     all_users =  graphene.List(UserType, description="Returns a list of all users in the system.")
 
     def resolve_all_users(self, info):
@@ -172,11 +206,18 @@ class Query(graphene.ObjectType):
             raise Exception("Authentication required")
         return User.objects.all()
 
-    def resolve_userProfile(root, info):
+    def resolve_user_profile(root, info, username):
+        if username:
+            try:
+                return UserProfile.objects.get(user__username = username)
+            except UserProfile.DoesNotExist:
+                raise Exception("Profile not found")
+
         user = info.context.user
         if user.is_anonymous:
             raise Exception("Authentication required to view profile.")
-        return user
+
+        return UserProfile.objects.get(user=user)
 
 class Mutation(graphene.ObjectType):
     """
