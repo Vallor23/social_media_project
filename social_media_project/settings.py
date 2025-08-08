@@ -37,7 +37,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['social-media-project-9u8u.onrender.com', 'localhost', '127.0.0.1']
 
@@ -55,8 +55,8 @@ INSTALLED_APPS = [
     'posts',
     'notifications',
     'graphene_django',
-     'rest_framework',
-     'corsheaders',
+    'rest_framework',
+    'corsheaders',
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -100,7 +100,7 @@ WSGI_APPLICATION = 'social_media_project.wsgi.application'
 
 DATABASES = {
      'default': dj_database_url.config(
-        default='postgresql://social_media_db_esib_user:kWpCmP0Ct1jbHoJ7dto3kEHeclocwSY7@dpg-d26i0n6r433s73ekjpjg-a/social_media_db_esib',
+        default=env("DATABASE_URL"),
         conn_max_age=600
     )
 }
@@ -141,7 +141,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
-
+# 👇 Only use this in development
+# STATIC_URL = '/static/'
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -159,3 +160,8 @@ GRAPHENE = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+SUPABASE_URL= env('SUPABASE_URL')
+SUPABASE_KEY = env('SUPABASE_KEY')
+SUPABASE_BUCKET_PROFILE = env('SUPABASE_BUCKET_PROFILE')
+SUPABASE_BUCKET_POSTS = env('SUPABASE_BUCKET_POSTS')

@@ -10,7 +10,7 @@ class UserType(DjangoObjectType):
     """Represents a user and their profile information."""
     class Meta:
         model = User
-        fields = ("id", "username","first_name", "last_name", "email", "profile_image", "created_at")
+        fields = ("id", "username","first_name", "last_name", "email", "created_at")
         description = "User profile data including social connections."
 
 class UserProfileType(DjangoObjectType):
