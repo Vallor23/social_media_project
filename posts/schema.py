@@ -1,6 +1,7 @@
 import graphene
 from graphene_django import DjangoObjectType
 from graphql import GraphQLError
+from utils.storage import StorageManager
 
 from .models import Comment, Like, Post
 
@@ -17,7 +18,7 @@ class PostType(DjangoObjectType):
 class CreatePost(graphene.Mutation):
         """Mutation for creating a new post"""
         class Arguments:
-            image = graphene.String(description='URL or path to the image')
+            image = graphene.String(description='Base64 encoded image')
             content = graphene.String(description='Content of the post')
 
         post = graphene.Field(PostType, description='The created post')
@@ -33,7 +34,13 @@ class CreatePost(graphene.Mutation):
                 raise GraphQLError('Post must have atleast an image or text')
 
             try:
-                post = Post.objects.create(user=user, content=content, image=image)
+                # Handle image upload if provided
+                image_url = None
+                if image:
+                    image_url = StorageManager.upload_post_image(image, str(user.id))
+                
+                # Create post with image URL
+                post = Post.objects.create(user=user, content=content, image=image_url)
                 return CreatePost(success=True, post=post, message='Post created successfully')
             except Exception as e:
                 return CreatePost(success=False, Post=None, message=f'Failed to create post: {str(e)}')

@@ -6,6 +6,8 @@ from graphql_jwt.shortcuts import get_token
 from django.contrib.auth import authenticate
 from graphql import GraphQLError
 
+from utils.storage import StorageManager
+
 class UserType(DjangoObjectType):
     """Represents a user and their profile information."""
     class Meta:
@@ -103,8 +105,7 @@ class LoginUser(graphene.Mutation):
 
 class UpdateProfile(graphene.Mutation):
     """
-    Allows an authenticated user to update their profile.
-    Only the provided fields will be updated.
+    Mutation for updating user profile"
     """
     class Arguments:
         username = graphene.String(description="New username (optional)")
@@ -116,30 +117,41 @@ class UpdateProfile(graphene.Mutation):
         
     user = graphene.Field(UserType, description="Updated user information")
     profile = graphene.Field(UserProfileType, description="The updated user profile information")
+    success = graphene.Boolean(description='Sucess/Error message')
+    message= graphene.String(description='Whether profile was updated successfully')
 
     def mutate(self, info, **kwargs):
         user = info.context.user
         if user.is_anonymous:
             raise Exception("Authentication required to update profile.")
         
-        user_fields = ['username', 'email', 'first_name', 'last_name']
-        profile_fields = ['bio', 'profile_image']
+        try:
+            # Handle profile image upload if provided
+            if 'profile_image' in kwargs:
+                base64_image = kwargs['profile_image']
+                image_url = StorageManager.upload_profile_image(base64_image, user.username)
+                kwargs['profile_image'] = image_url
 
-        # Update user fields
-        for key, value in kwargs.items():
-            if key in user_fields and value is not None:
-                setattr(user, key, value)
-        user.save()
+            user_fields = ['username', 'email', 'first_name', 'last_name']
+            profile_fields = ['bio', 'profile_image']
 
-        # Update profile fields
-        profile, created = UserProfile.objects.get_or_create(user=user)
-        for key, value in kwargs.items():
-            if key in profile_fields and value is not None:
-                setattr(profile, key, value)
-        profile.save()
+            # Update user fields
+            for key, value in kwargs.items():
+                if key in user_fields and value is not None:
+                    setattr(user, key, value)
+            user.save()
 
-        # Return the updated user and profile
-        return UpdateProfile(user=user, profile=profile)
+            # Update profile fields
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            for key, value in kwargs.items():
+                if key in profile_fields and value is not None:
+                    setattr(profile, key, value)
+            profile.save()
+
+            return UpdateProfile(user=user, profile=profile, success=True)
+
+        except Exception as e:
+            return UpdateProfile(success=False,message=f"Failed to update profile: {str(e)}")
 
 class FollowUser(graphene.Mutation):
     """
