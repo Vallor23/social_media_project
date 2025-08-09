@@ -2,19 +2,29 @@ import graphene
 from graphene_django import DjangoObjectType
 from graphql import GraphQLError
 from utils.storage import StorageManager
-
+from users.schema import UserType
 from .models import Comment, Like, Post
 
 class PostType(DjangoObjectType):
     likes_count = graphene.Int(description='Total number of likes for this post')
-
+    comments_count = graphene.Int(description='Total number of comments for this post')
+    is_liked = graphene.Boolean(description='Whether the current user has liked this post')
+    author = graphene.Field(UserType, description='post author details')
     class Meta:
         model = Post
         fields = ["id", "user", "image", "content", "created_at"]
 
     def resolve_likes_count(self, info):
-        self.post.likes.count()
+        self.likes.count()
 
+    def resolve_likes_count(self, info):
+        self.comments.count()
+
+    def resolve_is_liked(self, info):
+        user = info.context.user
+        if user.is_anonymous:
+            return False
+        return Like.objects.filter(user=user, post=self).exists()
 class CreatePost(graphene.Mutation):
         """Mutation for creating a new post"""
         class Arguments:
@@ -239,7 +249,29 @@ class EditComment(graphene.Mutation):
             return EditComment(success=False, comment=None, message=f'Failed to edit comment: {str(e)}')
 
 class Query():
-    pass
+    user_posts = graphene.List(PostType, username=graphene.String(required=True), description='Get posts for this specific user')
+
+    def resolve_user_posts(self, info, username):
+        # Get posts for specific user
+        return Post.objects.get(user__username=username).order_by('-created_at')
+
+    post_comments =  graphene.List(CommentType, post_id=graphene.ID(required=True), description='Get comments for a specific post')
+    def resolve_post_comments(self, info, post_id):
+        # Get comments
+        return Comment.objects.filter(post_id=post_id).select_related('user').order_by('-created_at')
+     
+    feed = graphene.List(PostType, description='Get feed of posts from followed users')
+    
+    def resolve_feed(self, info, **kwargs):
+        user = info.context.user
+        if user.is_anonymous:
+            raise GraphQLError("Authentication required")
+        
+        # Get IDs of user being followed
+        following_ids = user.following.value_list('following_id', flat=True)
+
+        # Get posts from followed users
+        return Post.objects.filter(user_id__in=following_ids).order_by('-created_at')
 class Mutation(graphene.ObjectType):
     create_comment = CreateComment.Field(description='Comment on a post')
     delete_comment = DeleteComment.Field(description='Delete a comment on a post')
