@@ -253,7 +253,7 @@ class Query():
 
     def resolve_user_posts(self, info, username):
         # Get posts for specific user
-        return Post.objects.get(user__username=username).order_by('-created_at')
+        return Post.objects.filter(user__username=username).order_by('-created_at')
 
     post_comments =  graphene.List(CommentType, post_id=graphene.ID(required=True), description='Get comments for a specific post')
     def resolve_post_comments(self, info, post_id):
