@@ -268,7 +268,7 @@ class Query():
             raise GraphQLError("Authentication required")
         
         # Get IDs of user being followed
-        following_ids = user.following.value_list('following_id', flat=True)
+        following_ids = user.following.values_list('following_id', flat=True)
 
         # Get posts from followed users
         return Post.objects.filter(user_id__in=following_ids).order_by('-created_at')
