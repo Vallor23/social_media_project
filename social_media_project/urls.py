@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from users.views import index
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 
@@ -24,5 +25,6 @@ from social_media_project.schema import schema
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', index),
     path('graphql/', csrf_exempt( GraphQLView.as_view(graphiql=True, schema=schema))),
 ]
